@@ -41,5 +41,6 @@ int main(int argc, char **argv)
         segment_length -= write_size;
         write_size = write_size < segment_length ? write_size : segment_length; 
     }
+    close(fd);
     return 0;
 }
