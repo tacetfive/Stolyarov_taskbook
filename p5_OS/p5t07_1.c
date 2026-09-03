@@ -4,9 +4,20 @@
 #include <stdint.h> /* uint32_t */
 #include <string.h> /* strcmp */
 #include <stdlib.h> /* malloc */
+#include <time.h>
 
-#define BUFFER_SIZE 4096
 #define KEY_LENGHT  60
+
+#ifndef SMALL_BUF
+#define SMALL_BUF 0
+#endif
+
+#if SMALL_BUF
+enum { BUFFER_SIZE = 64 };
+#else
+enum { BUFFER_SIZE = 4096 };
+#endif
+ /* #define BUFFER_SIZE 4096 */
 
 enum cmd { CMD_ADD, CMD_QUERY, CMD_LIST, CMD_UNKNOWN };
 
@@ -88,15 +99,16 @@ void print_table(int fd)
     int counter_size = sizeof(uint32_t);
     int record_size = counter_size + KEY_LENGHT;
     char buf[BUFFER_SIZE];
-    /* create array of pointers to table elements: */
+    /* buf_modified is an array of pointers to table record: */
     struct table *buf_modified[BUFFER_SIZE / record_size];
     while ( (red_bytes = read(fd, buf, BUFFER_SIZE)) ) {
+        idx_mod = 0;
         for ( idx = 0; idx < red_bytes; idx += record_size ) {
             buf_modified[idx_mod] = malloc( sizeof(struct table) );
             memcpy( buf_modified[idx_mod], &buf[idx], record_size );
             ++idx_mod;
         }
-        records_counter = idx_mod;
+        records_counter = idx_mod; /* how many records actually red */
         for ( idx_mod = 0; idx_mod < records_counter ; ++idx_mod )
             printf("%12d    [ %s ]\n", buf_modified[idx_mod]->counter, 
                                        buf_modified[idx_mod]->key);
@@ -108,10 +120,14 @@ void print_table(int fd)
 
 int main(int argc, char **argv) 
 {
+    clock_t time_start = clock();
+    clock_t time_end;
     enum cmd command_code;
     int fd;
     char *filename;
-    char key[KEY_LENGHT] = { '\0' };
+    char key[KEY_LENGHT] = { '\0' }; 
+    /* I think, initialize command line arguments is more safely,
+     * this avoided segmentation fault problems. */
     char command[12] = { '\0' };
     filename = argv[1];
     if ( argc > 2 ) 
@@ -128,16 +144,19 @@ int main(int argc, char **argv)
     switch (command_code) {
         case CMD_ADD:
             increase_counter(fd, key);
-            return 0;
+            break;
         case CMD_QUERY:
             query(fd, key);
-            return 0;
+            break;
         case CMD_LIST:
             print_table(fd);
-            return 0;
+            break;
         default:
             printf("nothing happened\n");
     }
     close(fd);
+    time_end = clock();
+    printf("Execution time: %.2f ms\n", 
+           ((double)(time_end - time_start) / CLOCKS_PER_SEC * 1000 ) );
     return 0;
 }
