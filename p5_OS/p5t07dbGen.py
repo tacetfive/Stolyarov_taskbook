@@ -3,11 +3,13 @@ import numpy as np
 import argparse
 import linecache # module for random access to specific lines from a text file
 import sys
+import random
+import string
 
 file_words = "test_files/words.txt"
 FILE_LENGTH = 466_434
 COUNTER_SIZE = 4 # uint32_t
-KEY_SIZE = 59 # except \0 terminator
+KEY_SIZE = 60 # for ljust() adjusting
 
 parser = argparse.ArgumentParser(description="This script generate simple \
 database which records\ncontain two fields: \
@@ -36,11 +38,10 @@ def print_to_file(filename, record_counters, keys):
     #for c, k in zip(record_counters, keys):
     #    print(c)
     #    print(k)
-
     with open(filename, "wb") as file:
         for c, k in zip(record_counters, keys):
             file.write(c)
-            file.write(k.ljust(60, '\0').encode("ascii"))
+            file.write(k.ljust(KEY_SIZE, '\0').encode("ascii"))
 
 def create_db_words(records_quantity):
     if records_quantity > FILE_LENGTH:
@@ -50,6 +51,7 @@ def create_db_words(records_quantity):
     # generate numbers of lines which will the key of database records
     rng = np.random.default_rng()
     lines_numbers = rng.choice(FILE_LENGTH, records_quantity, replace=False)
+#    lines_numbers.flags.writreable = False
     # rstrip method truncates symbols out of string
     keys = [linecache.getline(file_words, ln).rstrip('\n') \
              for ln in lines_numbers]
@@ -65,15 +67,21 @@ def generate_numbers_list(records_quantity): # non unique 32bit numbers for reco
                                   dtype=np.uint32)
     return generated_list
 
-def create_db_random_str(): # for database with enormous number of records
-    print_to_file(args.filename, keys)
+def create_db_random_str(records_quantity): # for database with enormous number of records
+    record_counters = generate_numbers_list(records_quantity)
+    alpabet = string.ascii_letters
+    keys = set()
+    while len(keys) < records_quantity:
+        rand_string = ''.join(random.choices(alpabet, k=(KEY_SIZE - 1)))
+        keys.add(rand_string)
+    print_to_file(args.filename, record_counters, keys)
 
 
 
 if not args.r and not args.w:
     create_db_words(10)
 elif args.r:
-    create_db_random_str()
+    create_db_random_str(args.records)
 else:
     create_db_words(args.records)
 
