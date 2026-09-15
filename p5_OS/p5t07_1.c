@@ -17,7 +17,6 @@ enum { BUFFER_SIZE = 64 };
 #else
 enum { BUFFER_SIZE = 4096 };
 #endif
- /* #define BUFFER_SIZE 4096 */
 
 enum cmd { CMD_ADD, CMD_QUERY, CMD_LIST, CMD_UNKNOWN };
 
@@ -99,7 +98,6 @@ void print_table(int fd)
     int counter_size = sizeof(uint32_t);
     int record_size = counter_size + KEY_LENGHT;
     char buf[BUFFER_SIZE];
-    /* buf_modified is an array of pointers to table record: */
     struct table *buf_modified[BUFFER_SIZE / record_size];
     while ( (red_bytes = read(fd, buf, BUFFER_SIZE)) ) {
         idx_mod = 0;
@@ -112,7 +110,6 @@ void print_table(int fd)
         for ( idx_mod = 0; idx_mod < records_counter ; ++idx_mod )
             printf("%12d    [ %s ]\n", buf_modified[idx_mod]->counter, 
                                        buf_modified[idx_mod]->key);
-        /* free dynamic memory */
         for ( idx_mod = 0; idx_mod < records_counter ; ++idx_mod )
             free(buf_modified[idx_mod]);
     }
