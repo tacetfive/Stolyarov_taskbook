@@ -1,7 +1,7 @@
 #include <unistd.h>
 #include "p5t07_3.h"
 
-enum { BUFFER_SIZE = sizeof(struct table) << 1 };
+enum { BUFFER_SIZE = sizeof(struct table) << 10 };
 
 enum cmd { CMD_ADD, CMD_QUERY, CMD_LIST, CMD_UNKNOWN };
 
@@ -18,8 +18,7 @@ struct table *find_by_key(int fd, const char *key_to_find, uint32_t *idx_db)
     int record_size = sizeof(struct table);
     struct table *table_elem = malloc(record_size);
     struct table *seek_elem = malloc(record_size);
-    int buf_size = record_size << 7;
-    uint8_t buf[buf_size];
+    uint8_t buf[BUFFER_SIZE];
     int idx_buf = 0;
     ssize_t red_bytes;
     uint32_t init_db_cap;
@@ -36,7 +35,7 @@ struct table *find_by_key(int fd, const char *key_to_find, uint32_t *idx_db)
         return table_elem;
     }
     lseek(fd, *idx_db, SEEK_SET);
-    while ( (red_bytes = read(fd, buf, buf_size)) ) {
+    while ( (red_bytes = read(fd, buf, BUFFER_SIZE)) ) {
         if ( red_bytes == -1 ) {
             perror("read error");
             exit(1);
@@ -139,7 +138,7 @@ int main(int argc, char **argv)
     }
     close(fd);
     time_end = clock();
-    printf("Execution time: %.2f ms\n", 
+    printf("Execution time: %.3f ms\n", 
            ((double)(time_end - time_start) / CLOCKS_PER_SEC * 1000 ) );
     return 0;
 }
