@@ -50,61 +50,70 @@ char **create_db_words(int records_quantity)
     return out;
 }
 
-int collision_resolution(uint32_t *idx_db_ptr, FILE *db_f, uint32_t *db_cap_b,
-                         const struct table *curr_rec, int *counter)
+uint32_t collision_resolution(uint32_t idx_db, FILE *db_f, uint32_t *db_cap_b,
+                         const struct table_rec *curr_rec, int *counter)
 {
-    int record_size = sizeof(struct table);
-    struct table *seek_rec = malloc(record_size);
-    if ( *idx_db_ptr >= *db_cap_b ) { /* check if we reach end of db */
-        (*db_cap_b) = (*idx_db_ptr) + record_size;
-        free(seek_rec); /* \ cannot use fseek to reach file size because */
-        return 0;       /* fseek is bufferized and file may not written. */
-    }
-    fseek(db_f, *idx_db_ptr, SEEK_SET);
-    if ( (fread(seek_rec, 1, record_size, db_f)) != record_size ) {
-        fprintf(stderr, "Read database error at %d position\n", *idx_db_ptr);
-        exit(1);
-    }
-    if ( !is_record_empty(seek_rec) ) {
-        (*counter)++;
-        if ( rec_cmp( seek_rec, curr_rec ) == 1 ) {
-            fprintf(stderr, "Fatal: two records are identical %s, %s\n",
-                        seek_rec->key, curr_rec->key);
+    int record_size = sizeof(struct table_rec);
+    struct table_rec *seek_rec = malloc(record_size);
+    while (1) {
+        if ( idx_db >= *db_cap_b ) { /* out of file? */
+            (*db_cap_b) = idx_db + record_size;
+            free(seek_rec); /* \ cannot use fseek to reach file size because */
+            return idx_db;       /* fseek is bufferized and file may not written. */
+        }
+        fseek(db_f, idx_db, SEEK_SET);
+        if ( (fread(seek_rec, 1, record_size, db_f)) != record_size ) {
+            fprintf(stderr, "Read database error at %d position\n", idx_db);
             exit(1);
         }
-        (*idx_db_ptr) += record_size;
-        collision_resolution( idx_db_ptr, db_f, db_cap_b, seek_rec, counter );
-    } /* may be as do-while loop */
-    free(seek_rec);
-    return 0;
+        if ( !is_record_empty(seek_rec) ) {
+            if ( rec_cmp( seek_rec, curr_rec ) == 1 ) {
+                fprintf(stderr, "Fatal: two records are identical %s, %s\n",
+                            seek_rec->key, curr_rec->key);
+                exit(1);
+            }
+            (*counter)++;
+            idx_db += record_size;
+        }
+        else {
+            free(seek_rec);
+            return idx_db;
+        }
+    }
 }
 
 int write_database( char **keys, int records_quantity, char *db_file )
 {
     FILE *db_f = fopen(db_file, "w+");
-    int record_size = sizeof(struct table);
-    int col_counter = 0;
-    uint32_t init_db_cap = closest_prime(records_quantity * 2);
-    uint32_t db_cap_b = 4;
+    int rec_size = sizeof(struct table_rec);
+    int md_size = sizeof(struct table_md);
+    struct table_rec *curr_rec = malloc(rec_size);
+    struct table_md *tmd = malloc(md_size);
+    uint32_t db_cap_b = md_size;
     uint32_t idx_keys = 0;
     uint32_t idx_db; /* byte number points to the record start */
-    struct table *curr_rec = malloc(record_size);
-    fwrite(&init_db_cap, sizeof(init_db_cap), 1, db_f);
+    int col_counter = 0;
+    /* write metadata */
+    tmd->init_db_cap = closest_prime(records_quantity * 2);
+    fwrite(tmd, md_size, 1, db_f);
     for ( idx_keys = 0; idx_keys < records_quantity; ++idx_keys ) {
         /* pack record data */
         curr_rec->hash_value = djb2_hf(keys[idx_keys]);
         curr_rec->counter = rand() % 300;
         memcpy(curr_rec->key, keys[idx_keys], KEY_LENGHT);
         /*                  */
-        idx_db = 4 + ( curr_rec->hash_value % init_db_cap ) * record_size;
-        collision_resolution(&idx_db, db_f, &db_cap_b, curr_rec, &col_counter);
+        idx_db = md_size + (curr_rec->hash_value % tmd->init_db_cap) * rec_size;
+        idx_db = collision_resolution(idx_db, db_f, &db_cap_b, 
+                                        curr_rec, &col_counter);
         fseek(db_f, idx_db, SEEK_SET);
-        fwrite(curr_rec, 1, record_size, db_f);
+        fwrite(curr_rec, 1, rec_size, db_f);
         free(keys[idx_keys]);
     }
-    fclose(db_f); free(curr_rec); free(keys);
     printf("Database with %d records wrote. %d collisions happened.\n",
                 records_quantity, col_counter);
+    fclose(db_f); 
+    free(curr_rec); free(tmd); 
+    free(keys);
     return 0;
 }
 

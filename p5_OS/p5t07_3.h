@@ -8,7 +8,11 @@
 
 enum { KEY_LENGHT = 60 };
 
-struct table {
+struct table_md { /* metadata for whole table */
+    uint32_t init_db_cap; /* initial capacity */
+};
+
+struct table_rec {  /* unique record */
     uint32_t hash_value;
     uint32_t counter;
     char key[KEY_LENGHT];
@@ -35,9 +39,9 @@ int is_string_empty(const char *str)
     return 1;
 }
 
-int is_record_empty(const struct table *r)
+int is_record_empty(const struct table_rec *r)
 {
-    int record_size = sizeof(struct table);
+    int record_size = sizeof(struct table_rec);
     const uint8_t *byte_check = (const uint8_t *)r;
     int i;
     for ( i = 0; i < record_size; ++i ) {
@@ -49,7 +53,7 @@ int is_record_empty(const struct table *r)
 
 int is_record_empty_bytes(const uint8_t *r)
 {
-    int record_size = sizeof(struct table);
+    int record_size = sizeof(struct table_rec);
     int i;
     for ( i = 0; i < record_size; ++i ) {
         if ( r[i] )
@@ -58,7 +62,7 @@ int is_record_empty_bytes(const uint8_t *r)
     return 1;
 }
 
-int rec_cmp(const struct table *a, const struct table *b)
+int rec_cmp(const struct table_rec *a, const struct table_rec *b)
 {
     if ( a->hash_value == b->hash_value ) {
         printf("Hashes are identical for %s, %s\n", a->key, b->key);
