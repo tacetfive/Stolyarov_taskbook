@@ -22,9 +22,10 @@ enum cmd { CMD_ADD, CMD_QUERY, CMD_LIST, CMD_UNKNOWN };
 
 struct table {
     uint32_t counter;
-    char key[60];
+    char key[KEY_LENGHT];
     int start; /* a byte number where entry starts in input file.
                   If there's no such key in database, equals -1 */
+               /* In p5t07_3 I refuse of that trash field. */
 };
 
 enum cmd get_command_code(const char *command)
@@ -39,9 +40,9 @@ struct table *find_by_key(int fd, const char *key_to_find)
 {
     char buf[BUFFER_SIZE];
     int idx_buf = 0;
-    int counter_size = sizeof(uint32_t);
     int record_size = counter_size + KEY_LENGHT;
     struct table *table_elem = malloc(sizeof(struct table));
+    int counter_size = sizeof(table_elem->counter);
     int buffers_counter = 0;
     ssize_t red_bytes;
     table_elem->counter = 0;
@@ -67,10 +68,10 @@ struct table *find_by_key(int fd, const char *key_to_find)
 
 void increase_counter(int fd, const char *key) 
 {
-    int counter_size = sizeof(uint32_t);
     int record_size = counter_size + KEY_LENGHT;
     struct table *table_elem = find_by_key(fd, key);
-    if ( table_elem->start == -1 ) {
+    int counter_size = sizeof(table_elem->counter);
+    if ( table_elem->start == -1 ) { /* is this condition is eq as counter == 0? */
         ++(table_elem->counter);
         lseek(fd, 0, SEEK_END);
         write(fd, table_elem, record_size);
